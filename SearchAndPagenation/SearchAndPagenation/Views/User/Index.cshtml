@@ -1,0 +1,155 @@
+﻿@using SearchAndPagenation.Models
+@model UserViewModel
+
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+
+    <title>User List</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" />
+    <style>
+        .pagination-link {
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        tr td {
+            padding: 15px !important;
+        }
+    </style>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+    <script>
+            var totalPages =  @Model.Pagination.TotalPages;
+            var currentPage =  @Model.Pagination.CurrentPage;
+            var searchTerm = '';
+        var pageSize = 5;
+        var isPageLoaded = false;
+        $(document).ready(function () {
+            localStorage.setItem('isPageLoaded', true);
+            loadUsers(1, pageSize, localStorage.getItem('searchTerm'), true);
+        });
+
+            $(document).on('click', '#searchForm', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            pageSize = @Model.Pagination.PageSize;
+            loadUsers(1, pageSize, localStorage.getItem('searchTerm'), true);
+            });
+
+        function loadUsers(page, pageSize, searchTerm, isPagenationUpdate) {
+            var buildurl = (localStorage.getItem('isPageLoaded')=='false' ? '@Url.Action("Index", "User" )' : '@Url.Action("loadData", "User" )');
+            console.log(buildurl)
+                $.ajax({
+                    url: buildurl,
+                    type: 'GET',
+                    data: {
+                        page: page,
+                        pageSize: pageSize,
+                        searchTerm: searchTerm
+                    },
+                    accepts: "application/json; charset=utf-8",
+                    dataType: "json",
+                    success: function (data) {
+                        if (localStorage.getItem('isPageLoaded') == 'false') {
+                            localStorage.setItem('isPageLoaded', true);
+                            initialize();
+                        } else {
+
+                            var $tbody = $('#dataGrid tbody');
+                            $tbody.empty();
+                            totalPages = data.Pagination.TotalPages;
+                            currentPage = data.Pagination.CurrentPage;
+                            $.each(data.Users, function (index, item) {
+                                var $row = $('<tr>').appendTo($tbody);
+                                $('<td>').text(item.FirstName).appendTo($row);
+                                $('<td>').text(item.LastName).appendTo($row);
+                                $('<td>').text(item.EmailId).appendTo($row);
+                                $('<td>').text(item.Address).appendTo($row);
+                                var newDT = new Date(+(item.DateOfBirth.replace(/[^0-9]/g, ""))).toLocaleDateString('en-IN');
+                                $('<td>').text(newDT).appendTo($row);
+                            });
+                            if (isPagenationUpdate) {
+                                updatePagination();
+                            }
+                        }
+
+                    }
+                });
+            }
+
+            function updatePagination() {
+                $('#pagination ul').empty();
+                for (var i = 1; i <= totalPages; i++) {
+                    var activeClass = (i === currentPage) ? 'active' : '';
+                    $('#pagination ul').append('<li class="page-item ' + activeClass + '"><a class="page-link" href="javascript:void(0);" data-page="' + i + '">' + i + '</a></li>');
+                }
+            }
+            $(document).on('click', '#pagination ul li a', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                currentPage = $(this).data('page');
+
+                if (currentPage == undefined) currentPage = 1;
+                pageSize = @Model.Pagination.PageSize;
+
+                loadUsers(currentPage, pageSize, localStorage.getItem('searchTerm'),true);
+            });
+
+        function updateSearchTerm() {
+            searchTerm = $('#searchTerm').val();
+            localStorage.setItem('searchTerm', searchTerm);
+        }
+
+        function initialize() {
+            updatePagination();
+        }
+
+        function resetGrid() {
+            searchTerm = '';
+            localStorage.clear();
+        }
+
+
+
+    </script>
+</head>
+<body onload="initialize()">
+    <h1>User List</h1>
+
+    <form id="searchForm">
+        <input type="text" id="searchTerm" placeholder="Search" value="@Model.SearchTerm" onkeyup="updateSearchTerm()">
+        <input type="submit" value="Search">
+
+        <input type="button" value="Reset Grid" onclick="resetGrid()">
+    </form>
+    <hr />
+
+    <div id="userList">
+        <table border="1" id="dataGrid">
+            <thead>
+                <tr>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Email</th>
+                    <th>Address</th>
+                    <th>Date of Birth</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    <div id="pagination" class="text-center">
+        <ul class="pagination"></ul>
+    </div>
+
+
+</body>
+</html>
